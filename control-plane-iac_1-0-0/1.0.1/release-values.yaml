@@ -1,0 +1,17 @@
+# release-values.yaml
+# Deployment-time values Devtron merges at release. NOT GUI knobs.
+#
+# This chart provisions no workload, so the image fields are inert — Devtron
+# replaces them from .image_descriptor_template.json but no template consumes
+# them. Kept only to satisfy Devtron's release flow.
+image:
+  repository: IMAGE_REPO
+  tag: IMAGE_TAG
+
+# Strategy/timing fields Devtron's schema expects. No-ops for this chart.
+pauseForSecondsBeforeSwitchActive: 0
+waitForSecondsBeforeScalingDown: 0
+autoPromotionSeconds: 30
+
+# used for deployment algo selection
+orchestrator.deploymant.algo: 1

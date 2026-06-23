@@ -1,0 +1,49 @@
+apiVersion: infra.contrib.fluxcd.io/v1alpha2
+kind: Terraform
+metadata:
+  name: {{ include "iac.name" . }}
+  # Pinned to flux-system (see gitrepository.yaml). Both CRs MUST be co-located
+  # with the controller; tofu-controller only reconciles CRs it can see.
+  namespace: {{ .Values.targetNamespace }}
+  labels:
+    app.kubernetes.io/managed-by: devtron
+    iac-block: {{ include "iac.name" . | quote }}
+spec:
+  interval: {{ .Values.terraform.interval }}
+  retryInterval: {{ .Values.terraform.retryInterval }}
+  # "auto" = plan+apply every interval (continuous). For a manual gate set this
+  # to "plan-<branch>-<sha>" and approve via the CR status / branch planner.
+  approvePlan: {{ .Values.terraform.approvePlan | quote }}
+  destroyResourcesOnDeletion: {{ .Values.terraform.destroyResourcesOnDeletion }}
+  serviceAccountName: {{ .Values.terraform.serviceAccountName }}
+  # Single shared root for every block.
+  path: {{ .Values.source.path | quote }}
+  # The override that differs between dev and prod: which .tfvars file to load.
+  # Maps to `-var-file=<f>` (bucket_name = dev-test | prod-test). File names must
+  # NOT be terraform.tfvars / *.auto.tfvars or they'd load for every block.
+  {{- if .Values.terraform.tfVarsFiles }}
+  tfVarsFiles:
+  {{- range .Values.terraform.tfVarsFiles }}
+    - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  sourceRef:
+    kind: GitRepository
+    name: {{ include "iac.sourceName" . }}
+    namespace: {{ .Values.targetNamespace }}
+  backendConfig:
+    # GCS remote state. Only the backend{} block — controller adds the
+    # terraform{} wrapper. Prefix differs per block so state never collides.
+    customConfiguration: |
+      backend "gcs" {
+        bucket = "{{ .Values.backend.bucket }}"
+        prefix = "{{ include "iac.backendPrefix" . }}"
+      }
+  {{- if .Values.outputs }}
+  writeOutputsToSecret:
+    name: {{ include "iac.name" . }}-outputs
+    outputs:
+    {{- range .Values.outputs }}
+      - {{ . | quote }}
+    {{- end }}
+  {{- end }}

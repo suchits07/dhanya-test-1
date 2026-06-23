@@ -1,0 +1,68 @@
+# control-plane-iac — full chart defaults.
+#
+# Renders a Flux GitRepository + a tofu-controller Terraform CR, both pinned to
+# flux-system, for the infra-iac-poc.
+#
+# This file carries EVERYTHING, including cluster-infra facts that operators
+# must NOT repoint per app/env (targetNamespace, source.url, backend.bucket,
+# terraform.serviceAccountName). Those are deliberately absent from
+# app-values.yaml so they can't be edited from the GUI — they take effect here
+# as Helm defaults. The per-env knobs live in app-values.yaml.
+
+# Logical block name. Unique per Devtron environment — dev and prod both render
+# into flux-system, so the CR/GitRepository names must differ.
+name: control-plane-dev
+
+# INFRA (values-only): both CRs are always created here, regardless of the
+# Devtron environment namespace (dev-ns / prod-ns). Do not expose to the GUI.
+targetNamespace: flux-system
+
+source:
+  # INFRA (values-only): the IaC repo. Public HTTPS = no secretRef needed.
+  url: https://github.com/dhanyavg-atlan/dhanya-iac-test.git
+  # GUI-editable: branch to track.
+  ref: main
+  # INFRA (values-only): single shared root for every block.
+  path: ./
+  interval: 1m
+  # secretRef: <secret-in-flux-system>   # only for a private repo
+
+terraform:
+  interval: 5m
+  retryInterval: 30s
+  # GUI-editable: auto = plan+apply each interval; plan-<branch>-<sha> = gate.
+  approvePlan: auto
+  destroyResourcesOnDeletion: false
+  # INFRA (values-only): WIF-bound SA already in flux-system.
+  serviceAccountName: tf-runner
+  # GUI-editable PER-ENV: which .tfvars file to load (-var-file). This is the
+  # only override that changes provisioned values between environments.
+  tfVarsFiles:
+    - dev.tfvars
+
+backend:
+  # INFRA (values-only): GCS bucket holding tfstate; writable by the tf-runner GSA.
+  bucket: REPLACE_ME_TF_STATE_BUCKET
+  # GUI-editable PER-ENV: keep dev/prod distinct so state never collides.
+  prefix: infra-iac-poc/dev
+
+# tofu outputs surfaced into Secret <name>-outputs in flux-system.
+outputs:
+  - bucket_name
+  - bucket_url
+
+# ── Devtron validator stub — DO NOT DELETE ─────────────────────────────────
+# Devtron's deployment-template validation requires capitalized
+# autoscaling.MinReplicas / MaxReplicas even though this chart runs no workload.
+# Unused by the templates.
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 1
+  TargetCPUUtilizationPercentage: 80
+
+# Image stub — Devtron injects repo/tag from .image_descriptor_template.json /
+# release-values.yaml at deploy time. Unused by the templates.
+image:
+  repository: busybox
+  tag: "1.36"
