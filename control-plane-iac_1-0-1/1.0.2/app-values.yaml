@@ -1,0 +1,36 @@
+# app-values.yaml
+# The SUBSET of values.yaml that Devtron surfaces as the editable Deployment
+# Template in the GUI (per app + per environment). A key is overridable from the
+# GUI only if it appears here. Cluster-infra facts (targetNamespace,
+# source.url, backend.bucket, terraform.serviceAccountName) are deliberately
+# left in values.yaml so operators can't repoint them per app/env.
+#
+# The three fields that actually differ between environments are marked PER-ENV.
+
+# PER-ENV: unique per environment (both CRs land in flux-system).
+name: control-plane-dev
+
+source:
+  ref: main
+
+terraform:
+  approvePlan: auto
+  destroyResourcesOnDeletion: false
+  # PER-ENV: [dev.tfvars] for the dev block, [prod.tfvars] for the prod block.
+  tfVarsFiles:
+    - dev.tfvars
+
+backend:
+  # PER-ENV: infra-iac-poc/dev or infra-iac-poc/prod.
+  prefix: infra-iac-poc/dev
+
+outputs:
+  - bucket_name
+  - bucket_url
+
+# Required by Devtron's deployment-template validation (capitalized keys).
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 1
+  TargetCPUUtilizationPercentage: 80

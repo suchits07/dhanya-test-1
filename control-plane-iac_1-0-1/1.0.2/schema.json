@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "control-plane-iac deployment template",
+  "description": "Renders a Flux GitRepository + tofu-controller Terraform CR (both in flux-system). GUI schema for the Devtron deployment template.",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Block Name",
+      "description": "Unique per environment. Names the Terraform CR and (with -source) the GitRepository. dev and prod MUST differ — both land in flux-system."
+    },
+    "targetNamespace": {
+      "type": "string",
+      "title": "Target Namespace",
+      "description": "Namespace for BOTH CRs. Pinned to flux-system (where tofu-controller + tf-runner live). Do not change per environment."
+    },
+    "source": {
+      "type": "object",
+      "title": "Git Source",
+      "description": "The IaC repo tofu-controller reads. Shared across blocks (same repo); only the path differs.",
+      "properties": {
+        "url": { "type": "string", "title": "Repo URL", "description": "HTTPS (public) or ssh:// (private, needs secretRef) URL of the IaC repo." },
+        "ref": { "type": "string", "title": "Branch", "description": "Git branch to track." },
+        "path": { "type": "string", "title": "Path", "description": "Single shared root the CR runs tofu in. Same for every block (./)." },
+        "interval": { "type": "string", "title": "Sync Interval", "description": "How often Flux re-checks the repo, e.g. 1m." },
+        "secretRef": { "type": "string", "title": "Auth Secret", "description": "Secret in flux-system with git creds. Only for private repos." }
+      }
+    },
+    "terraform": {
+      "type": "object",
+      "title": "Terraform CR",
+      "description": "tofu-controller reconcile settings.",
+      "properties": {
+        "interval": { "type": "string", "title": "Reconcile Interval", "description": "How often the controller re-reconciles, e.g. 5m." },
+        "retryInterval": { "type": "string", "title": "Retry Interval", "description": "Backoff between failed reconciles." },
+        "approvePlan": { "type": "string", "title": "Approve Plan", "description": "auto = plan+apply each interval; plan-<branch>-<sha> = manual gate." },
+        "destroyResourcesOnDeletion": { "type": "boolean", "title": "Destroy On Deletion", "description": "tofu destroy when the CR is deleted. Keep false unless offboarding." },
+        "serviceAccountName": { "type": "string", "title": "Runner ServiceAccount", "description": "KSA the runner pod uses (WIF-bound). tf-runner in flux-system." },
+        "tfVarsFiles": { "type": "array", "title": "Var Files", "description": "PER-ENV: .tfvars files to load (-var-file), relative to path. dev block => [dev.tfvars]; prod block => [prod.tfvars].", "items": { "type": "string" } }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "title": "State Backend (GCS)",
+      "description": "Remote tfstate. Prefix differs per block so dev/prod never collide.",
+      "properties": {
+        "bucket": { "type": "string", "title": "State Bucket", "description": "GCS bucket holding tfstate. Must be writable by the runner GSA." },
+        "prefix": { "type": "string", "title": "State Prefix", "description": "PER-ENV: infra-iac-poc/dev or infra-iac-poc/prod." }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "title": "Outputs",
+      "description": "tofu outputs written to the Secret <name>-outputs in flux-system.",
+      "items": { "type": "string" }
+    },
+    "autoscaling": {
+      "type": "object",
+      "title": "Autoscaling (Devtron validator stub)",
+      "description": "Unused by this chart. Present because Devtron's deployment-template validation requires capitalized MinReplicas/MaxReplicas.",
+      "required": ["MinReplicas", "MaxReplicas"],
+      "properties": {
+        "enabled": { "type": "boolean", "title": "Enabled", "description": "Leave false." },
+        "MinReplicas": { "type": ["integer", "string"], "title": "Min Replicas", "description": "Required by Devtron." },
+        "MaxReplicas": { "type": ["integer", "string"], "title": "Max Replicas", "description": "Required by Devtron." },
+        "TargetCPUUtilizationPercentage": { "type": ["integer", "string"], "title": "Target CPU %", "description": "Required by Devtron." }
+      }
+    },
+    "image": {
+      "type": "object",
+      "title": "Image (Devtron stub)",
+      "description": "Injected by Devtron; unused by this chart.",
+      "properties": {
+        "repository": { "type": "string", "title": "Repository", "description": "Image repo." },
+        "tag": { "type": "string", "title": "Tag", "description": "Image tag." }
+      }
+    }
+  }
+}

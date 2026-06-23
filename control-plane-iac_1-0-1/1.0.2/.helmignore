@@ -1,0 +1,8 @@
+# Keep internal/session artifacts out of the packaged .tgz
+.claude/
+*.jsonl
+.git/
+.gitignore
+*.tgz
+.DS_Store
+README.md
